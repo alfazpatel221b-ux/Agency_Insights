@@ -36,7 +36,10 @@ export default function LoginPage() {
       await seedDemoData(firestore);
       router.push('/dashboard');
     } catch (error: any) {
-      setError('Unable to start the demo. Please check the Firebase configuration.');
+      console.error('[demo-login]', error);
+      const code = error?.code ? String(error.code) : 'unknown-error';
+      const message = error?.message ? String(error.message) : 'No error message returned.';
+      setError(`Demo startup failed: ${code} — ${message}`);
     } finally {
       setIsLoggingIn(false);
     }
@@ -67,7 +70,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+            {error && <p className="text-sm font-medium text-destructive break-words">{error}</p>}
             
             <Button type="submit" className="w-full h-12 font-bold uppercase tracking-[0.15em] text-xs" disabled={isLoggingIn}>
               {isLoggingIn ? 'Signing in…' : 'Sign in'}
