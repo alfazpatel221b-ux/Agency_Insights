@@ -1,0 +1,1 @@
+// This file has been removed as all data is now managed via Firestore.

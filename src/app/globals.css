@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 60 10% 95%; /* #F4F4F0 Cream */
+    --foreground: 0 0% 4%; /* #0A0A0A Ink */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 223 100% 33%; /* #002FA7 Brand Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 32%; /* #525252 */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 60 10% 90%;
+    --muted-foreground: 0 0% 32%;
+    --accent: 223 100% 33%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 7%; /* #121212 Strong Border */
+    --input: 0 0% 88%;
+    --ring: 223 100% 33%;
+    --radius: 0px;
+    --success: 163 100% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 100% 57%;
+    --warning-foreground: 0 0% 8%;
+
+    /* Emergent Semantic Palette */
+    --ink: 0 0% 4%;
+    --cream: 60 10% 95%;
+    --brand: 223 100% 33%;
+    --surface: 0 0% 100%;
+    --app: 60 10% 95%;
+    --hairline: 60 6% 86%; /* #DCDCD4 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border rounded-none;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline tracking-tighter uppercase leading-none;
+  }
+}
+
+@layer components {
+  /* Tactical surface — replaces unfinished glass language */
+  .glass,
+  .glass-card {
+    @apply bg-surface border border-ink;
+    backdrop-filter: none;
+  }
+
+  .ios-shadow {
+    box-shadow: none;
+  }
+
+  .panel {
+    @apply bg-surface border border-ink;
+  }
+
+  .filter-chip {
+    @apply flex items-center gap-2 bg-muted border border-hairline h-10 px-3;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center p-12 md:p-16 border border-dashed border-ink/20 bg-foreground/[0.02] text-center space-y-4;
+  }
+
+  .micro-label {
+    @apply text-[11px] font-bold uppercase tracking-widest text-secondary;
+  }
+}
+
+/* Tactical Swiss Grid Pattern */
+.tactical-grid {
+  background-image: 
+    linear-gradient(to right, rgba(18, 18, 18, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(18, 18, 18, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+}
+
+/* Swiss Tactical Grid Classes */
+.brutalist-shadow {
+  box-shadow: 12px 12px 0px hsl(var(--brand));
+}
+
+.terminal-overline {
+  @apply text-[11px] font-bold uppercase tracking-[0.18em] text-secondary mb-2 flex items-center gap-2;
+}
+
+.terminal-overline::before {
+  content: "";
+  @apply h-[1px] w-4 bg-neutral-400;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  @apply w-1.5 h-1.5;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-neutral-400/50 hover:bg-neutral-500/50;
+}
+
+/* Status Dot Pulse */
+.pulse-dot {
+  @apply rounded-full;
+  animation: tactical-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes tactical-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(0.9); }
+}
+
+input:focus, select:focus, textarea:focus {
+  @apply ring-0 border-brand border-[2px] outline-none !important;
+}
+
+/* Compact react-day-picker (overrides default 40px cells) */
+.rdp.rdp-compact,
+.rdp-compact.rdp {
+  --rdp-cell-size: 32px;
+  --rdp-caption-font-size: 12px;
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-background-color: hsl(var(--primary) / 0.12);
+  margin: 0;
+}
+
+.rdp-compact .rdp-months {
+  justify-content: center;
+}
+
+/* Native date fields used in dialogs — keep them compact */
+input[type="date"] {
+  min-height: 2.5rem;
+  max-width: 100%;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
