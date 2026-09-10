@@ -1,1 +1,5 @@
-{"projects":{"default":"agency-insights-bd711"}}
+{
+  "projects": {
+    "default": "vdc200007-ppclientcentre-prod"
+  }
+}

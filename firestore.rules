@@ -1,9 +1,118 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function admin() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin'; }
-    match /users/{id} { allow read: if signedIn(); allow create: if signedIn() && request.auth.uid == id; allow update: if signedIn() && (request.auth.uid == id || admin()); allow delete: if admin(); }
-    match /{document=**} { allow read, write: if signedIn(); }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isDentsuUser() {
+      return isSignedIn() &&
+        request.auth.token.email.matches('^[^@]+@dentsu\\.com$');
+    }
+
+    function isAdmin() {
+      return isDentsuUser() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'User Registered';
+    }
+
+    function isApproved() {
+      return isDentsuUser() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status in ['User Registered', 'Invite sent'];
+    }
+
+    // USERS
+    match /users/{userId} {
+      allow read: if isAdmin() || (isDentsuUser() && request.auth.uid == userId);
+      allow create: if isDentsuUser() &&
+        request.resource.data.email.matches('.*@dentsu\\.com') &&
+        request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'permissions']) &&
+        ((request.auth.uid == userId &&
+          request.resource.data.uid == userId &&
+          request.resource.data.status == 'Pending' &&
+          request.resource.data.role == 'Client Partner' &&
+          request.resource.data.permissions == []) ||
+         isAdmin());
+      allow update: if isAdmin() ||
+        (isApproved() &&
+         request.auth.uid == userId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']));
+      allow delete: if isAdmin();
+    }
+    
+    // CLIENTS
+    match /clients/{clientId} {
+      allow read, write: if isApproved();
+    }
+
+    // LEADS
+    match /leads/{leadId} {
+      allow read, write: if isApproved();
+    }
+
+    // KPI DATA & WEEKLY BREAKDOWN
+    match /kpis/{kpiId} {
+      allow read, write: if isApproved();
+    }
+    
+    match /kpiWeeklyData/{weeklyDataId} {
+      allow read, write: if isApproved();
+    }
+
+    // KPI DEFINITIONS
+    match /kpiDefinitions/{id} {
+      allow read, write: if isApproved();
+    }
+
+    // CHANNELS
+    match /channels/{id} {
+      allow read, write: if isApproved();
+    }
+
+    // SPENDS
+    match /monthlySpends/{id} {
+      allow read, write: if isApproved();
+    }
+    match /weeklySpends/{id} {
+      allow read, write: if isApproved();
+    }
+
+    // BUSINESS SNAPSHOTS
+    match /businessSnapshots/{id} {
+      allow read, write: if isApproved();
+    }
+
+    // SETTINGS (email automations, Teams webhook, etc.)
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // MAIL AUDIT LOG (written by Cloud Functions Admin SDK)
+    match /mailLog/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // IN-APP TEAM NOTIFICATIONS
+    match /notifications/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false;
+    }
+
+    // DEPRECATED COLLECTIONS (Maintenance)
+    match /actionItems/{id} { allow read, write: if isApproved(); }
+    match /wbrEntries/{id} { allow read, write: if isApproved(); }
+    match /pageManagement/{id} { allow read, write: if isApproved(); }
+    match /clusterInsights/{id} { allow read, write: if isApproved(); }
   }
 }
