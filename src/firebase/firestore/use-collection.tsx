@@ -1,22 +1,20 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { onSnapshot, collection, query, Query, DocumentData, CollectionReference, QueryConstraint } from 'firebase/firestore';
 import { useFirestore } from '../provider';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-// Use a static empty array to prevent infinite loops when queryConstraints is not provided.
 const EMPTY_CONSTRAINTS: any[] = [];
 
 /**
  * Hook to listen to a Firestore collection or query.
- * 
- * CRITICAL: queryConstraints must be memoized in the component calling this hook.
- * If passed as an inline array (e.g. [where(...)]) it will trigger an infinite render loop.
- * 
- * @param path The collection path.
- * @param queryConstraints Firestore QueryConstraints array (where, orderBy, limit, etc.)
+ * Query constraints must be memoized by callers.
+ *
+ * Demo compatibility: legacy lead records may contain `services` as a
+ * scalar string. Normalize that shape at the Firestore boundary so every
+ * consumer receives the array shape defined by Lead.
  */
 export function useCollection<T>(path: string, queryConstraints: any[] = EMPTY_CONSTRAINTS) {
   const firestore = useFirestore();
@@ -25,8 +23,6 @@ export function useCollection<T>(path: string, queryConstraints: any[] = EMPTY_C
   const [error, setError] = useState<Error | null>(null);
 
   const collectionQuery = useMemo(() => {
-    // If any constraint is null, we treat the query as not ready.
-    // An empty array [] is valid and returns the base collection reference.
     if (queryConstraints && queryConstraints.some(c => c === null)) {
       return null;
     }
@@ -34,16 +30,15 @@ export function useCollection<T>(path: string, queryConstraints: any[] = EMPTY_C
     try {
       let ref: Query<DocumentData> = collection(firestore, path);
       const activeConstraints = queryConstraints.filter((c): c is QueryConstraint => !!c && typeof c === 'object');
-      
       if (activeConstraints.length > 0) {
         ref = query(ref, ...activeConstraints);
       }
       return ref;
     } catch (err) {
-      console.error("Failed to build Firestore query:", err);
+      console.error('Failed to build Firestore query:', err);
       return null;
     }
-  }, [firestore, path, queryConstraints]); 
+  }, [firestore, path, queryConstraints]);
 
   useEffect(() => {
     if (collectionQuery === null) {
@@ -54,17 +49,32 @@ export function useCollection<T>(path: string, queryConstraints: any[] = EMPTY_C
     }
 
     setLoading(true);
-    const unsubscribe = onSnapshot(collectionQuery, 
+    const unsubscribe = onSnapshot(collectionQuery,
       (snapshot) => {
         const result: T[] = [];
         snapshot.forEach((doc) => {
-          result.push({ id: doc.id, ...doc.data() } as unknown as T);
+          const item: any = { id: doc.id, ...doc.data() };
+
+          if (path === 'leads') {
+            if (Array.isArray(item.services)) {
+              item.services = item.services.filter((s: unknown): s is string => typeof s === 'string');
+            } else if (typeof item.services === 'string' && item.services.trim()) {
+              item.services = item.services
+                .split(/[;,]/)
+                .map((s: string) => s.trim())
+                .filter(Boolean);
+            } else {
+              item.services = [];
+            }
+          }
+
+          result.push(item as T);
         });
-        
+
         setData(result);
         setLoading(false);
         setError(null);
-      }, 
+      },
       async (err) => {
         if (err.code === 'permission-denied') {
           const permissionError = new FirestorePermissionError({
