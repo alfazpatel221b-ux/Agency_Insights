@@ -22,8 +22,51 @@ async function put(db: Firestore, rows: any[]) {
   }
 }
 
+async function repairExistingDemoData(db: Firestore) {
+  const repairs: any[] = [];
+
+  const leadsSnap = await getDocs(collection(db, 'leads'));
+  leadsSnap.docs.forEach((leadDoc) => {
+    const data = leadDoc.data();
+    if (typeof data.services === 'string') {
+      repairs.push({
+        p: `leads/${leadDoc.id}`,
+        d: { services: [data.services] },
+      });
+    }
+  });
+
+  const monthlySnap = await getDocs(collection(db, 'monthlySpends'));
+  monthlySnap.docs.forEach((spendDoc) => {
+    const data = spendDoc.data();
+    const patch: Record<string, unknown> = {};
+    if (data.creditLine == null) patch.creditLine = 'Demo Media';
+    if (data.currency == null) patch.currency = 'INR';
+    if (data.team == null) patch.team = 'DEMO';
+    if (data.channelVendor == null) patch.channelVendor = 'Other';
+    if (Object.keys(patch).length) repairs.push({ p: `monthlySpends/${spendDoc.id}`, d: patch });
+  });
+
+  const weeklySnap = await getDocs(collection(db, 'weeklySpends'));
+  weeklySnap.docs.forEach((spendDoc) => {
+    const data = spendDoc.data();
+    const patch: Record<string, unknown> = {};
+    if (data.creditLine == null) patch.creditLine = 'Demo Media';
+    if (data.currency == null) patch.currency = 'INR';
+    if (data.team == null) patch.team = 'DEMO';
+    if (data.channelVendor == null) patch.channelVendor = 'Other';
+    if (Object.keys(patch).length) repairs.push({ p: `weeklySpends/${spendDoc.id}`, d: patch });
+  });
+
+  if (repairs.length) await put(db, repairs);
+}
+
 export async function seedDemoData(db: Firestore) {
-  if (!(await getDocs(query(collection(db, 'clients'), limit(1)))).empty) return false;
+  const clientsSnap = await getDocs(query(collection(db, 'clients'), limit(1)));
+  if (!clientsSnap.empty) {
+    await repairExistingDemoData(db);
+    return false;
+  }
 
   const now = new Date();
   const months = Array.from({ length: 12 }, (_, i) =>
@@ -42,7 +85,7 @@ export async function seedDemoData(db: Firestore) {
         p: `monthlySpends/${id}`,
         d: {
           uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE',
-          subEntity: c[3], channelVendor: ch, currency: 'INR', team: teams[ci % 4], month: m,
+          subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], month: m,
           actualSpendsInr: Math.round((650000 + ci * 90000 + mi * 18000) * (0.8 + chi * 0.12))
         }
       });
@@ -81,7 +124,7 @@ export async function seedDemoData(db: Firestore) {
       p: `weeklySpends/${id}`,
       d: {
         uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE',
-        subEntity: c[3], channelVendor: ch, currency: 'INR', team: teams[ci % 4], week,
+        subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], week,
         month: format(ws, 'yyyy-MM'),
         spendsInr: Math.round((150000 + ci * 20000) * (0.85 + chi * .08) * (1 + wi * .025))
       }
@@ -126,7 +169,7 @@ export async function seedDemoData(db: Firestore) {
       d: {
         companyName: ['Pioneer Foods','Lumen Living','Cedar Finance','Orbit Learning','Harbor Hotels'][i % 5],
         phone: '', status: ['Qualified','Pitch','Negotiation','Contract','Won','Lost'][i % 6],
-        services: ['Performance','SEO','Creatives'][i % 3], estimatedValue: 1200000 + i * 150000,
+        services: [['Performance'],['SEO'],['Creatives']][i % 3], estimatedValue: 1200000 + i * 150000,
         notes: 'Synthetic opportunity for portfolio demonstration.', opportunityOwner: ['Aarav','Meera','Dev','Riya'][i % 4],
         expectedSpends: 450000 + i * 50000, teamAssigned: teams[i % 4],
         expectedGoLiveDate: format(new Date(Date.now() + (15 + i) * 86400000), 'yyyy-MM-dd'),
