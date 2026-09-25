@@ -168,7 +168,7 @@ export function AppSidebar({ mobile = false, onNavigate }: AppSidebarProps) {
         )}
       </div>
 
-      {!mobile && !isCollapsed && (
+      {!isCollapsed && (
         <div className="border-t border-ink px-2 py-2">
           <DemoTourLauncher />
         </div>
