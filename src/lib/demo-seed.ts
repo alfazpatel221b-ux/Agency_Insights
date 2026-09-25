@@ -11,7 +11,7 @@ const clients = [
   ['CLID0141','Vertex Electronics','CONSUMER TECH','SOUTH','Sameer Kulkarni','Tara Menon'],
 ] as const;
 
-const channels = ['Google','Meta','LinkedIn','YouTube'];
+const channels = ['Google','Meta','LinkedIn','YouTube','Amazon','Flipkart','Blinkit','Instamart','Affiliates','Branding'];
 const teams = ['ORION','NOVA','ATLAS','NORTHSTAR'];
 
 // Deliberately non-linear synthetic business patterns so demo charts resemble
@@ -98,6 +98,183 @@ async function repairExistingDemoData(db: Firestore) {
     if (Object.keys(patch).length) repairs.push({ p: `weeklySpends/${spendDoc.id}`, d: patch });
   });
 
+  // Expand the demo channel mix and backfill any missing spend rows.
+  await put(db, channels.map((name) => ({
+    p: `channels/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    d: { name },
+  })));
+
+  const existingMonthlyIds = new Set(monthlySnap.docs.map((d) => d.id));
+  const existingWeeklyIds = new Set(weeklySnap.docs.map((d) => d.id));
+  const channelBackfill: any[] = [];
+
+  clients.forEach((c, ci) => months.forEach((m, mi) => {
+    channels.forEach((ch, chi) => {
+      const id = `m_${c[0]}_${m}_${chi}`;
+      if (existingMonthlyIds.has(id)) return;
+      channelBackfill.push({
+        p: `monthlySpends/${id}`,
+        d: {
+          uploadRecordId: id,
+          clientId: c[0],
+          brandName: c[1],
+          industry: c[2],
+          type: 'PERFORMANCE',
+          subEntity: c[3],
+          channelVendor: ch,
+          creditLine: 'Demo Media',
+          currency: 'INR',
+          team: teams[ci % 4],
+          month: m,
+          actualSpendsInr: Math.round(
+            (650000 + ci * 90000 + mi * 18000) *
+            (0.72 + chi * 0.055) *
+            monthlySpendCurve[mi]
+          ),
+        },
+      });
+    });
+  }));
+
+  weeks.forEach((ws, wi) => clients.forEach((c, ci) => channels.forEach((ch, chi) => {
+    const week = format(ws, 'dd-MM-yyyy');
+    const id = `w_${c[0]}_${week}_${chi}`;
+    if (existingWeeklyIds.has(id)) return;
+    channelBackfill.push({
+      p: `weeklySpends/${id}`,
+      d: {
+        uploadRecordId: id,
+        clientId: c[0],
+        brandName: c[1],
+        industry: c[2],
+        type: 'PERFORMANCE',
+        subEntity: c[3],
+        channelVendor: ch,
+        creditLine: 'Demo Media',
+        currency: 'INR',
+        team: teams[ci % 4],
+        week,
+        month: format(ws, 'yyyy-MM'),
+        spendsInr: Math.round(
+          (150000 + ci * 20000) *
+          (0.72 + chi * 0.055) *
+          weeklySpendCurve[wi]
+        ),
+      },
+    });
+  })));
+
+  if (channelBackfill.length) await put(db, channelBackfill);
+
+  // Populate every WBR field for every synthetic client so the Engagement
+  // Review and Operational Review sections are never empty in the demo.
+  const wbrSnap = await getDocs(collection(db, 'wbrEntries'));
+  const wbrByClient = new Map<string, { id: string; data: any }>();
+  wbrSnap.docs.forEach((d) => {
+    const data = d.data();
+    if (data.clientId) wbrByClient.set(String(data.clientId), { id: d.id, data });
+  });
+
+  clients.forEach((c, ci) => {
+    const existing = wbrByClient.get(c[0]);
+    const wbrId = existing?.id || `wbr_${c[0]}_${format(week0, 'yyyy-MM-dd')}`;
+    const tone = ['Green', 'Green', 'Amber', 'Green', 'Amber', 'Red'][ci];
+    const patch = {
+      clientId: c[0],
+      clientName: c[1],
+      cluster: c[2],
+      clusterLead: c[4],
+      emcsm: c[5],
+      clientPartner: 'Demo Partner',
+      wbrDate: format(week0, 'yyyy-MM-dd'),
+      contractStatus: ci === 5 ? 'Negotiation' : 'Valid',
+      engagementRag: tone,
+      performanceRag: ['Green', 'Amber', 'Green', 'Green', 'Amber', 'Red'][ci],
+      financeIssues: [
+        'No open billing issues. Monthly reconciliation is on track.',
+        'Invoice mapping is being monitored; no material client impact.',
+        'No finance exceptions reported this cycle.',
+        'PO and invoice alignment reviewed with the client team.',
+        'Minor billing follow-up remains with the finance desk.',
+        'Renewal commercials are under review alongside contract discussions.',
+      ][ci],
+      organicOpportunities: [
+        'SEO content expansion and category-page optimization identified as a growth opportunity.',
+        'Local SEO and mobility-intent landing pages can be expanded.',
+        'Thought-leadership content and high-intent finance search themes identified.',
+        'Destination content and SEO-led demand capture can be scaled.',
+        'Condition-led content and organic health education themes offer incremental reach.',
+        'Product/category SEO and shopping-content expansion identified.',
+      ][ci],
+      crossSellOpportunities: [
+        'Explore CRM remarketing and marketplace media alongside paid search.',
+        'Evaluate creative testing and affiliate acquisition to complement paid media.',
+        'Explore LinkedIn lead generation and content-led demand generation.',
+        'Evaluate paid social and affiliate partnerships for incremental bookings.',
+        'Explore YouTube awareness and performance creative testing.',
+        'Evaluate marketplace advertising and creator/affiliate partnerships.',
+      ][ci],
+      performanceSummary: [
+        'Paid media is pacing steadily with channel mix providing room for incremental scale.',
+        'Performance is mixed across channels; efficiency recovery is being monitored weekly.',
+        'Lead volume is healthy while CPA remains the primary optimization focus.',
+        'Demand is recovering with channel-level volatility being actively managed.',
+        'Performance is stable overall with opportunity to improve upper-funnel contribution.',
+        'Efficiency is under pressure in selected channels; corrective actions are in flight.',
+      ][ci],
+      summary: [
+        'Client engagement remains healthy. The focus for the next cycle is controlled scale and channel diversification.',
+        'Stakeholders remain engaged. The immediate priority is restoring efficiency while protecting qualified volume.',
+        'Business conversations are constructive. Lead quality and CPA are the key topics for the next review.',
+        'Client sentiment is positive with attention on recovering demand and improving channel consistency.',
+        'The account is engaged and collaborative. Growth opportunities are being balanced with efficiency.',
+        'The account requires closer leadership attention around performance and commercial discussions.',
+      ][ci],
+      updatedAt: new Date().toISOString(),
+    };
+    repairs.push({ p: `wbrEntries/${wbrId}`, d: patch });
+  });
+
+  // Keep the Action Board visibly populated across every workflow status.
+  const actionStatuses = ['Work-In Progress', 'On-Hold', 'Observation', 'Overdue', 'Completed'] as const;
+  const actionSections = ['CLIENT ENGAGEMENT', 'SALES', 'OPERATIONS', 'AGENCY INSIGHTS', 'HR', 'MANAGEMENT'];
+  const actionTemplates = [
+    'Review weekly client performance and confirm next actions',
+    'Follow up on pending client dependency and unblock owner',
+    'Capture optimization observation from channel review',
+    'Escalate overdue delivery item and confirm recovery date',
+    'Close completed reporting / review deliverable',
+    'Validate next-cycle spend and KPI assumptions',
+    'Review sales pipeline capacity against delivery plan',
+    'Refresh executive snapshot commentary before WBR',
+    'Confirm operational handover checklist completion',
+    'Document cross-sell opportunity from account review',
+  ];
+  actionTemplates.forEach((taskName, i) => {
+    const status = actionStatuses[i % actionStatuses.length];
+    const dueOffset = status === 'Overdue' ? -3 : status === 'Completed' ? -2 : (i + 2);
+    const c = clients[i % clients.length];
+    const id = `demo_action_${i + 1}`;
+    repairs.push({
+      p: `actionItems/${id}`,
+      d: {
+        id,
+        taskName,
+        description: 'Synthetic action item for portfolio demonstration.',
+        assignedTo: ['Aarav','Meera','Dev','Riya'][i % 4],
+        section: actionSections[i % actionSections.length],
+        clientId: c[0],
+        clientName: c[1],
+        comment: 'Demo action with synthetic context and ownership.',
+        status,
+        priority: ['Low', 'Medium', 'High', 'Critical'][i % 4],
+        dueDate: format(new Date(Date.now() + dueOffset * 86400000), 'yyyy-MM-dd'),
+        createdAt: new Date(Date.now() - (i + 1) * 86400000).toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  });
+
   const kpiSnap = await getDocs(collection(db, 'kpis'));
   kpiSnap.docs.forEach((kpiDoc) => {
     const data = kpiDoc.data();
@@ -161,11 +338,48 @@ export async function seedDemoData(db: Firestore) {
   })));
 
   const cycle = format(week0, 'yyyy-MM-dd');
-  clients.forEach((c, ci) => rows.push({ p: `wbrEntries/wbr_${c[0]}_${cycle}`, d: { clientId: c[0], clientName: c[1], cluster: c[2], clusterLead: c[4], emcsm: c[5], clientPartner: 'Demo Partner', wbrDate: cycle, contractStatus: 'Valid', engagementRag: ci % 4 === 3 ? 'Amber' : 'Green', performanceRag: ci % 4 === 2 ? 'Red' : ci % 4 === 1 ? 'Amber' : 'Green', financeIssues: 'No material finance issues.', summary: ci % 4 === 2 ? 'Recovery actions are being tracked weekly.' : 'Performance remains broadly on plan.', updatedAt: new Date().toISOString() } }));
+  clients.forEach((c, ci) => rows.push({
+    p: `wbrEntries/wbr_${c[0]}_${cycle}`,
+    d: {
+      clientId: c[0], clientName: c[1], cluster: c[2], clusterLead: c[4], emcsm: c[5],
+      clientPartner: 'Demo Partner', wbrDate: cycle,
+      contractStatus: ci === 5 ? 'Negotiation' : 'Valid',
+      engagementRag: ['Green', 'Green', 'Amber', 'Green', 'Amber', 'Red'][ci],
+      performanceRag: ['Green', 'Amber', 'Green', 'Green', 'Amber', 'Red'][ci],
+      financeIssues: 'No open material finance issues; reconciliation is being tracked.',
+      organicOpportunities: 'Synthetic organic growth opportunity identified from the account review.',
+      crossSellOpportunities: 'Synthetic cross-sell opportunity identified for the next review cycle.',
+      performanceSummary: 'Synthetic weekly performance summary with channel-level observations.',
+      summary: 'Synthetic executive summary covering client engagement, performance and next actions.',
+      updatedAt: new Date().toISOString(),
+    },
+  }));
 
-  for (let i = 0; i < 12; i++) {
-    const c = clients[i % clients.length]; const id = `demo_action_${i + 1}`;
-    rows.push({ p: `actionItems/${id}`, d: { id, taskName: ['Review channel pacing','Refresh client WBR','Close tracking gap','Validate forecast'][i % 4], description: 'Synthetic portfolio action for demonstration.', assignedTo: 'Demo Team', section: ['CLIENT ENGAGEMENT','SALES','OPERATIONS','AGENCY INSIGHTS','HR','MANAGEMENT'][i % 6], clientId: c[0], clientName: c[1], comment: '', status: ['Work-In Progress','Completed','Overdue','On-Hold'][i % 4], priority: ['Low','Medium','High','Critical'][i % 4], dueDate: format(new Date(Date.now() + (i - 5) * 86400000), 'yyyy-MM-dd'), createdAt: new Date(Date.now() - i * 86400000).toISOString(), updatedAt: new Date().toISOString() } });
+  const actionStatuses = ['Work-In Progress', 'On-Hold', 'Observation', 'Overdue', 'Completed'] as const;
+  const actionTasks = ['Review channel pacing','Follow up client dependency','Capture optimization observation','Escalate overdue deliverable','Close WBR deliverable','Validate forecast','Review sales capacity','Refresh executive snapshot','Confirm handover checklist','Document cross-sell opportunity'];
+  for (let i = 0; i < 15; i++) {
+    const c = clients[i % clients.length];
+    const status = actionStatuses[i % actionStatuses.length];
+    const dueOffset = status === 'Overdue' ? -3 : status === 'Completed' ? -2 : i + 2;
+    const id = `demo_action_${i + 1}`;
+    rows.push({
+      p: `actionItems/${id}`,
+      d: {
+        id,
+        taskName: actionTasks[i % actionTasks.length],
+        description: 'Synthetic portfolio action for demonstration.',
+        assignedTo: ['Aarav','Meera','Dev','Riya'][i % 4],
+        section: ['CLIENT ENGAGEMENT','SALES','OPERATIONS','AGENCY INSIGHTS','HR','MANAGEMENT'][i % 6],
+        clientId: c[0],
+        clientName: c[1],
+        comment: 'Demo action with synthetic context.',
+        status,
+        priority: ['Low','Medium','High','Critical'][i % 4],
+        dueDate: format(new Date(Date.now() + dueOffset * 86400000), 'yyyy-MM-dd'),
+        createdAt: new Date(Date.now() - (i + 1) * 86400000).toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    });
   }
 
   for (let i = 0; i < 10; i++) {
