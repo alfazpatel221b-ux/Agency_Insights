@@ -73,6 +73,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             data-testid="app-main"
             suppressHydrationWarning
           >
+            {isDashboard && (
+              <div className="w-full border-b border-amber-300/60 bg-amber-50 px-4 md:px-8 py-2 text-[10px] md:text-[11px] text-amber-950">
+                <div className="mx-auto max-w-[1920px] flex items-center gap-2">
+                  <span className="font-black uppercase tracking-[0.14em] shrink-0">Demo Environment</span>
+                  <span className="opacity-40">·</span>
+                  <span>All clients, people, spend, KPI, sales and activity data shown here is synthetic and for demonstration only.</span>
+                </div>
+              </div>
+            )}
             <div 
               className={cn(
                 "w-full mx-auto",
