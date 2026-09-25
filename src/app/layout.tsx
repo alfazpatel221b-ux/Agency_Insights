@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { FirebaseClientProvider } from "@/firebase";
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClientLayout } from "@/components/client-layout";
+import { Analytics } from '@vercel/analytics/next';
 
 const fontBody = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -54,6 +55,7 @@ export default function RootLayout({
           <Toaster position="bottom-right" richColors theme="light" />
           <ShadcnToaster />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
