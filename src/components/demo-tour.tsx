@@ -156,7 +156,9 @@ export function DemoTour({ forceOpen = false, onForceClose }: { forceOpen?: bool
   }, [open, current]);
 
   const position = useMemo(() => {
-    if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    if (!rect || typeof window === 'undefined') {
+      return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    }
     const width = Math.min(420, window.innerWidth - 32);
     const left = Math.min(Math.max(16, rect.right + 18), window.innerWidth - width - 16);
     const top = Math.min(Math.max(16, rect.top), window.innerHeight - 300);
