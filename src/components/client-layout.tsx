@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/app-header";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { DemoTour } from "@/components/demo-tour";
 
 export const ChromeContext = React.createContext<{
   mobileNavOpen: boolean;
@@ -80,6 +81,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               suppressHydrationWarning
             >
               {children}
+              {isDashboard && <DemoTour />}
             </div>
           </main>
         </div>
