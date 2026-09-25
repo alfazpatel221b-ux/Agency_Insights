@@ -53,9 +53,15 @@ export default function LoginPage() {
         <div className="w-full max-w-sm space-y-10">
           <AgencyInsightsLogo className="scale-110" />
           
-          <div className="space-y-2">
-            <h1 className="text-4xl font-black tracking-tighter uppercase">Sign in</h1>
-            <p className="text-sm text-secondary">Use any email and password to enter the portfolio demo.</p>
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 border border-brand/20 bg-brand/5 px-2.5 py-1.5">
+              <span className="w-1.5 h-1.5 bg-brand" />
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-brand">Interactive Portfolio Demo</span>
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl font-black tracking-tighter uppercase">Sign in</h1>
+              <p className="text-sm text-secondary">Use any email address and any password to enter. This is a demonstration environment — no real account is required.</p>
+            </div>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -73,8 +79,15 @@ export default function LoginPage() {
             {error && <p className="text-sm font-medium text-destructive break-words">{error}</p>}
             
             <Button type="submit" className="w-full h-12 font-bold uppercase tracking-[0.15em] text-xs" disabled={isLoggingIn}>
-              {isLoggingIn ? 'Signing in…' : 'Sign in'}
+              {isLoggingIn ? 'Starting demo…' : 'Enter demo'}
             </Button>
+
+            <div className="border border-amber-300/70 bg-amber-50 px-4 py-3">
+              <p className="text-[11px] leading-5 text-amber-950">
+                <span className="font-black uppercase tracking-wider">Demo data notice: </span>
+                All clients, people, spend, KPI, sales and activity records inside this app are synthetic data created for demonstration purposes. They are not real customer or company records and should not be treated as such.
+              </p>
+            </div>
           </form>
 
           <div className="flex flex-col gap-4 pt-6 border-t border-hairline">
@@ -82,7 +95,7 @@ export default function LoginPage() {
                <span className="text-xs text-secondary">Need an account?</span>
                <Link href="/register" className="text-xs font-bold uppercase text-brand hover:underline">Request access</Link>
              </div>
-             <p className="text-[11px] text-secondary font-mono">Agency Insights</p>
+             <p className="text-[11px] text-secondary font-mono">Agency Insights · Synthetic data · Portfolio demonstration only</p>
           </div>
         </div>
       </div>
