@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { useUser, useDoc, useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { toast } from "sonner";
+import { DemoTourLauncher } from "@/components/demo-tour";
 import { UserProfile } from "@/lib/types";
 
 const nav = [
@@ -166,6 +167,12 @@ export function AppSidebar({ mobile = false, onNavigate }: AppSidebarProps) {
           </div>
         )}
       </div>
+
+      {!mobile && !isCollapsed && (
+        <div className="border-t border-ink px-2 py-2">
+          <DemoTourLauncher />
+        </div>
+      )}
 
       {!mobile && (
         <div className="border-t border-ink p-3" data-testid="sidebar-collapse-container">
