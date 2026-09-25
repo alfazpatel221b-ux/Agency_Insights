@@ -250,7 +250,8 @@ async function repairExistingDemoData(db: Firestore) {
     'Confirm operational handover checklist completion',
     'Document cross-sell opportunity from account review',
   ];
-  actionTemplates.forEach((taskName, i) => {
+  for (let i = 0; i < 15; i++) {
+    const taskName = actionTemplates[i % actionTemplates.length];
     const status = actionStatuses[i % actionStatuses.length];
     const dueOffset = status === 'Overdue' ? -3 : status === 'Completed' ? -2 : (i + 2);
     const c = clients[i % clients.length];
@@ -273,7 +274,7 @@ async function repairExistingDemoData(db: Firestore) {
         updatedAt: new Date().toISOString(),
       },
     });
-  });
+  }
 
   const kpiSnap = await getDocs(collection(db, 'kpis'));
   kpiSnap.docs.forEach((kpiDoc) => {
