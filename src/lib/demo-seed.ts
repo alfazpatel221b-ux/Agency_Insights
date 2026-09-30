@@ -27,7 +27,7 @@ const monthlyClientPulse = (clientIndex: number, monthNumber: number) => {
   // of gainers and losers; other months use a deterministic oscillating curve.
   const recentMonthPulse: Record<number, number[]> = {
     8: [1.00, 1.04, 0.98, 1.05, 1.01, 1.03],
-    9: [1.13, 0.88, 1.10, 0.84, 1.08, 0.86],
+    9: [1.13, 0.70, 1.10, 0.65, 1.08, 0.68],
   };
   const recent = recentMonthPulse[monthNumber];
   if (recent) return recent[clientIndex] ?? 1;
