@@ -20,6 +20,8 @@ const monthlySpendCurve = [0.94, 1.06, 0.91, 1.12, 1.03, 0.86, 1.08, 0.97, 1.15,
 const weeklySpendCurve = [0.98, 1.09, 0.93, 1.15, 0.88, 1.06, 0.96, 1.12];
 const kpiPerformanceCurve = [0.96, 1.04, 0.91, 1.08, 0.99, 0.87, 1.05, 0.94, 1.09, 0.97, 1.03, 1.06];
 const intraMonthKpiCurve = [0.94, 1.06, 0.97, 1.11, 0.92];
+const clientSpendPulse = [1.04, 0.91, 1.07, 0.89, 1.05, 0.93];
+const clientPriorYearPulse = [0.94, 1.08, 0.91, 1.06, 0.96, 1.10];
 
 async function put(db: Firestore, rows: any[]) {
   for (let i = 0; i < rows.length; i += 450) {
@@ -43,7 +45,7 @@ async function repairExistingDemoData(db: Firestore) {
   });
 
   const now = new Date();
-  const months = Array.from({ length: 12 }, (_, i) => format(subMonths(startOfMonth(now), 11 - i), 'yyyy-MM'));
+  const months = Array.from({ length: 21 }, (_, i) => format(subMonths(startOfMonth(now), 20 - i), 'yyyy-MM'));
   const week0 = startOfWeek(now, { weekStartsOn: 1 });
   const weeks = Array.from({ length: 8 }, (_, i) => startOfWeek(subWeeks(week0, 7 - i), { weekStartsOn: 1 }));
 
@@ -60,10 +62,16 @@ async function repairExistingDemoData(db: Firestore) {
     const chi = channels.indexOf(String(data.channelVendor));
     const mi = months.indexOf(String(data.month));
     if (ci >= 0 && chi >= 0 && mi >= 0) {
+      const year = String(data.month || '').slice(0, 4);
+      const monthNo = Number(String(data.month || '').slice(5, 7));
+      const curveIndex = year === String(now.getFullYear()) ? Math.max(0, monthNo - 1) : Math.max(0, monthNo - 1);
+      const yearFactor = year === String(now.getFullYear()) ? 1 : clientPriorYearPulse[ci];
       patch.actualSpendsInr = Math.round(
-        (650000 + ci * 90000 + mi * 18000) *
+        (650000 + ci * 90000 + monthNo * 18000) *
         (0.8 + chi * 0.12) *
-        monthlySpendCurve[mi]
+        monthlySpendCurve[curveIndex % monthlySpendCurve.length] *
+        clientSpendPulse[ci] *
+        yearFactor
       );
     }
     if (Object.keys(patch).length) repairs.push({ p: `monthlySpends/${spendDoc.id}`, d: patch });
@@ -91,7 +99,9 @@ async function repairExistingDemoData(db: Firestore) {
       patch.spendsInr = Math.round(
         (150000 + ci * 20000) *
         (0.85 + chi * 0.08) *
-        weeklySpendCurve[wi]
+        weeklySpendCurve[wi] *
+        clientSpendPulse[ci] *
+        (wi % 2 === 0 ? 0.96 : 1.04)
       );
       patch.month = format(weeks[wi], 'yyyy-MM');
     }
@@ -129,7 +139,9 @@ async function repairExistingDemoData(db: Firestore) {
           actualSpendsInr: Math.round(
             (650000 + ci * 90000 + mi * 18000) *
             (0.72 + chi * 0.055) *
-            monthlySpendCurve[mi]
+            monthlySpendCurve[mi % monthlySpendCurve.length] *
+            clientSpendPulse[ci] *
+            (String(m).startsWith(String(now.getFullYear())) ? 1 : clientPriorYearPulse[ci])
           ),
         },
       });
@@ -158,7 +170,9 @@ async function repairExistingDemoData(db: Firestore) {
         spendsInr: Math.round(
           (150000 + ci * 20000) *
           (0.72 + chi * 0.055) *
-          weeklySpendCurve[wi]
+          weeklySpendCurve[wi] *
+          clientSpendPulse[ci] *
+          (wi % 2 === 0 ? 0.96 : 1.04)
         ),
       },
     });
@@ -314,7 +328,7 @@ export async function seedDemoData(db: Firestore) {
   }
 
   const now = new Date();
-  const months = Array.from({ length: 12 }, (_, i) => format(subMonths(startOfMonth(now), 11 - i), 'yyyy-MM'));
+  const months = Array.from({ length: 21 }, (_, i) => format(subMonths(startOfMonth(now), 20 - i), 'yyyy-MM'));
   const week0 = startOfWeek(now, { weekStartsOn: 1 });
   const weeks = Array.from({ length: 8 }, (_, i) => startOfWeek(subWeeks(week0, 7 - i), { weekStartsOn: 1 }));
   const rows: any[] = [];
@@ -322,7 +336,7 @@ export async function seedDemoData(db: Firestore) {
   clients.forEach((c, ci) => months.forEach((m, mi) => {
     channels.forEach((ch, chi) => {
       const id = `m_${c[0]}_${m}_${chi}`;
-      rows.push({ p: `monthlySpends/${id}`, d: { uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE', subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], month: m, actualSpendsInr: Math.round((650000 + ci * 90000 + mi * 18000) * (0.8 + chi * 0.12) * monthlySpendCurve[mi]) } });
+      rows.push({ p: `monthlySpends/${id}`, d: { uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE', subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], month: m, actualSpendsInr: Math.round((650000 + ci * 90000 + mi * 18000) * (0.8 + chi * 0.12) * monthlySpendCurve[mi % monthlySpendCurve.length] * clientSpendPulse[ci] * (m.startsWith(String(now.getFullYear())) ? 1 : clientPriorYearPulse[ci])) } });
     });
 
     [['ROAS','PRIMARY','ASC',4.2 + ci * .1,3.7 + (mi % 5) * .18], ['Leads','PRIMARY','ASC',240 + ci * 30,210 + (mi * 17 + ci * 11) % 120], ['CPA','NON-PRIMARY','DESC',850 - ci * 15,740 + (mi * 23 + ci * 9) % 170]].forEach((k, ki) => {
@@ -335,7 +349,7 @@ export async function seedDemoData(db: Firestore) {
   weeks.forEach((ws, wi) => clients.forEach((c, ci) => channels.forEach((ch, chi) => {
     const week = format(ws, 'dd-MM-yyyy');
     const id = `w_${c[0]}_${week}_${chi}`;
-    rows.push({ p: `weeklySpends/${id}`, d: { uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE', subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], week, month: format(ws, 'yyyy-MM'), spendsInr: Math.round((150000 + ci * 20000) * (0.85 + chi * .08) * weeklySpendCurve[wi]) } });
+    rows.push({ p: `weeklySpends/${id}`, d: { uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE', subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], week, month: format(ws, 'yyyy-MM'), spendsInr: Math.round((150000 + ci * 20000) * (0.85 + chi * .08) * weeklySpendCurve[wi] * clientSpendPulse[ci] * (wi % 2 === 0 ? 0.96 : 1.04)) } });
   })));
 
   const cycle = format(week0, 'yyyy-MM-dd');
