@@ -21,8 +21,18 @@ const weeklySpendCurve = [0.98, 1.09, 0.93, 1.15, 0.88, 1.06, 0.96, 1.12];
 const kpiPerformanceCurve = [0.96, 1.04, 0.91, 1.08, 0.99, 0.87, 1.05, 0.94, 1.09, 0.97, 1.03, 1.06];
 const intraMonthKpiCurve = [0.94, 1.06, 0.97, 1.11, 0.92];
 const clientSpendPulse = [1.04, 0.91, 1.07, 0.89, 1.05, 0.93];
-const clientPriorYearPulse = [0.94, 1.08, 0.91, 1.06, 0.96, 1.10];
-const monthlyClientPulse = (clientIndex: number, monthNumber: number) => 1 + ((((clientIndex * 7 + monthNumber * 5) % 9) - 4) * 0.035);
+const clientPriorYearPulse = [0.92, 1.12, 0.90, 1.10, 0.94, 1.14];
+const monthlyClientPulse = (clientIndex: number, monthNumber: number) => {
+  // Explicit Sep-vs-Aug movement gives the executive cards a believable mix
+  // of gainers and losers; other months use a deterministic oscillating curve.
+  const recentMonthPulse: Record<number, number[]> = {
+    8: [1.00, 1.04, 0.98, 1.05, 1.01, 1.03],
+    9: [1.13, 0.88, 1.10, 0.84, 1.08, 0.86],
+  };
+  const recent = recentMonthPulse[monthNumber];
+  if (recent) return recent[clientIndex] ?? 1;
+  return 1 + ((((clientIndex * 7 + monthNumber * 5) % 9) - 4) * 0.035);
+};
 
 async function put(db: Firestore, rows: any[]) {
   for (let i = 0; i < rows.length; i += 450) {
