@@ -22,6 +22,7 @@ const kpiPerformanceCurve = [0.96, 1.04, 0.91, 1.08, 0.99, 0.87, 1.05, 0.94, 1.0
 const intraMonthKpiCurve = [0.94, 1.06, 0.97, 1.11, 0.92];
 const clientSpendPulse = [1.04, 0.91, 1.07, 0.89, 1.05, 0.93];
 const clientPriorYearPulse = [0.94, 1.08, 0.91, 1.06, 0.96, 1.10];
+const monthlyClientPulse = (clientIndex: number, monthNumber: number) => 1 + ((((clientIndex * 7 + monthNumber * 5) % 9) - 4) * 0.035);
 
 async function put(db: Firestore, rows: any[]) {
   for (let i = 0; i < rows.length; i += 450) {
@@ -70,6 +71,7 @@ async function repairExistingDemoData(db: Firestore) {
         (650000 + ci * 90000 + monthNo * 18000) *
         (0.8 + chi * 0.12) *
         monthlySpendCurve[curveIndex % monthlySpendCurve.length] *
+        monthlyClientPulse(ci, monthNo) *
         clientSpendPulse[ci] *
         yearFactor
       );
@@ -140,6 +142,7 @@ async function repairExistingDemoData(db: Firestore) {
             (650000 + ci * 90000 + mi * 18000) *
             (0.72 + chi * 0.055) *
             monthlySpendCurve[mi % monthlySpendCurve.length] *
+            monthlyClientPulse(ci, Number(String(m).slice(5, 7))) *
             clientSpendPulse[ci] *
             (String(m).startsWith(String(now.getFullYear())) ? 1 : clientPriorYearPulse[ci])
           ),
@@ -336,7 +339,7 @@ export async function seedDemoData(db: Firestore) {
   clients.forEach((c, ci) => months.forEach((m, mi) => {
     channels.forEach((ch, chi) => {
       const id = `m_${c[0]}_${m}_${chi}`;
-      rows.push({ p: `monthlySpends/${id}`, d: { uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE', subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], month: m, actualSpendsInr: Math.round((650000 + ci * 90000 + mi * 18000) * (0.8 + chi * 0.12) * monthlySpendCurve[mi % monthlySpendCurve.length] * clientSpendPulse[ci] * (m.startsWith(String(now.getFullYear())) ? 1 : clientPriorYearPulse[ci])) } });
+      rows.push({ p: `monthlySpends/${id}`, d: { uploadRecordId: id, clientId: c[0], brandName: c[1], industry: c[2], type: 'PERFORMANCE', subEntity: c[3], channelVendor: ch, creditLine: 'Demo Media', currency: 'INR', team: teams[ci % 4], month: m, actualSpendsInr: Math.round((650000 + ci * 90000 + mi * 18000) * (0.8 + chi * 0.12) * monthlySpendCurve[mi % monthlySpendCurve.length] * monthlyClientPulse(ci, Number(m.slice(5, 7))) * clientSpendPulse[ci] * (m.startsWith(String(now.getFullYear())) ? 1 : clientPriorYearPulse[ci])) } });
     });
 
     [['ROAS','PRIMARY','ASC',4.2 + ci * .1,3.7 + (mi % 5) * .18], ['Leads','PRIMARY','ASC',240 + ci * 30,210 + (mi * 17 + ci * 11) % 120], ['CPA','NON-PRIMARY','DESC',850 - ci * 15,740 + (mi * 23 + ci * 9) % 170]].forEach((k, ki) => {
